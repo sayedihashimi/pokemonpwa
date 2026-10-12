@@ -13,14 +13,15 @@ This plan is dated October 12, 2026. It covers implementation and release valida
 | Accounts | No sign-in or cloud collection storage | Confirmed |
 | Hosting | Free GitHub Pages hosting | Confirmed |
 | Release trigger | Push to the `deploy` branch | Confirmed |
-| Languages | English physical cards | Assumption pending interview answer |
-| Pricing market | US marketplace, USD | Assumption pending interview answer |
-| Card type | Ungraded Pokemon, Trainer, and Energy cards | Assumption pending interview answer |
-| Capture | One card per capture; live camera and photo upload | Assumption pending interview answer |
-| Connectivity | Online catalog/price fetching; cached results offline | Assumption pending interview answer |
-| Target devices | iPhone Safari and installed PWA, Android Chrome and installed PWA; desktop upload fallback | Proposed validation priority |
+| Languages | English physical cards | Confirmed |
+| Pricing market | USD; US marketplace references | USD confirmed |
+| Card type | Scan ungraded cards; also show PSA 9 and PSA 10 comparison prices | Confirmed |
+| Capture | One card per capture; live camera and photo upload | Confirmed |
+| Connectivity | Internet required for fresh details and prices; cache is optional convenience | Confirmed |
+| Target devices | iPhone Safari and installed PWA; desktop Chrome and Edge | Confirmed |
+| Pricing infrastructure | Free operation, with a small serverless proxy allowed to protect provider keys | Confirmed |
 
-Collection catalogs, binders, portfolio totals, accounts, social features, buying/selling, sealed products, graded-card valuations, price charts, and multi-card photos are outside the MVP. The recognition pipeline must have room for later improvements without adding these features now.
+Collection catalogs, binders, portfolio totals, accounts, social features, buying/selling, sealed products, slab scanning, grade prediction, other graders, price charts, and multi-card photos are outside the MVP. PSA 9 and PSA 10 prices are comparison references for the identified raw card, not predicted grades or expected grading profits.
 
 ## Product flow
 
@@ -30,7 +31,7 @@ Collection catalogs, binders, portfolio totals, accounts, social features, buyin
 4. Process the image locally, with a visible progress state and Cancel. Detect weak input such as blur or an unreadable number and suggest a retake.
 5. Show up to five ranked card candidates with thumbnail, name, set, and number. A strong match may open directly into a confirmation view, but it must not be presented as final until confirmed. Preserve a Change match action.
 6. Let the collector confirm the exact card and choose its available printing, such as normal, holofoil, or reverse holofoil. Require edition confirmation when applicable. Do not automatically infer condition from the photo.
-7. Show card details and the chosen printing's market reference, including source, currency, provider timestamp, cache status, and a link to the exact marketplace product.
+7. Show card details and separate Raw, PSA 9, and PSA 10 reference rows for the exact printing. Each row includes its own source, metric, currency, timestamp, and availability. Offer grade-specific eBay sold-search links for inspection.
 8. Offer Scan another, Change match, and Refresh price. Keep the result available during the current session without creating a collection record.
 
 Manual lookup searches by name, collector number, and set. It uses the same candidates, confirmation, and pricing flow, so correction never requires restarting the app.
@@ -44,7 +45,7 @@ Manual lookup searches by name, collector number, and set. It uses the same cand
 | Recognition | Progress, cancel | Unreadable photo, no candidates, timeout, worker failure |
 | Match confirmation | Candidate images, set/number, change match, printing choice | Reprinted artwork, ambiguous edition, unsupported card |
 | Card details | Name, image, set, number, rarity, category, available HP/types/artist | Missing optional fields must be omitted cleanly |
-| Price panel | Market reference, printing, USD, source, dates, product link, refresh | No price, stale cache, offline, rate limit, provider failure |
+| Price panel | Raw, PSA 9, PSA 10 references; printing, USD, per-row source/dates, eBay sold-search links, refresh | No price for an individual grade, stale cache, offline, rate limit, provider failure |
 | App information | Install guidance, privacy summary, version, clear cached data | Storage unavailable, update ready |
 
 Use responsive layouts, readable camera controls, accessible focus/labels, and text alongside status colors. Support portrait phones without horizontal scrolling and respect reduced motion. Only show installation guidance that applies to the current platform.
@@ -60,6 +61,7 @@ Use responsive layouts, readable camera controls, accessible focus/labels, and t
 | Image processing | Canvas | Resize, crop, rotation, contrast adjustments; perspective correction only if needed by the benchmark |
 | OCR | Tesseract.js in a reusable Web Worker | Local name, number, and set-code extraction |
 | Catalog and prices | TCGdex REST adapter | Fetch, normalize, validate, and cache public data |
+| PSA prices | Separate graded-price adapter and free serverless proxy | Protect API key and normalize exact PSA 9/10 comparisons; provider selection is a feasibility gate |
 | Local database | Dexie over IndexedDB | Versioned catalog cache, detail cache, settings, price snapshots |
 | Tests | Vitest and Playwright | Matching/pricing regressions and production-build browser workflows |
 
@@ -100,6 +102,8 @@ Never use a normal printing's quote for reverse holo, or one edition's quote for
 Pricing validation compares at least 30 representative card/printing pairs with the corresponding marketplace product and metric. Record source timestamps, condition scope, currency, and mapping. Explain every observed discrepancy; a live marketplace changing since the provider snapshot is distinct from a mapping bug. Require zero unresolved printing/edition/product mapping errors. If provider coverage or freshness is inadequate, narrow and clearly label supported coverage or choose another permitted provider before release. TCGCSV can be evaluated as a fallback feed, but it is not an independent second marketplace and does not supply individual sales.
 
 ## Data storage and privacy
+
+Graded-price cache keys also include grading company and numeric grade. Raw, PSA 9, and PSA 10 entries must never overwrite one another.
 
 | Stored item | Lifetime | Rules |
 | --- | --- | --- |
@@ -148,11 +152,11 @@ After deployment, verify HTTPS loading, manifest/icons, camera access, API CORS,
 
 | Milestone | Work and deliverables | Exit criteria |
 | --- | --- | --- |
-| 1 Data and recognition feasibility | Verify provider coverage, schema, CORS, reuse/attribution rules; assemble card/photo benchmark; prototype local OCR and exact matching; estimate downloaded index/model size | Reliable candidate retrieval, price mapping evidence, and measured recognition results support the architecture |
+| 1 Data and recognition feasibility | Verify raw/PSA feeds, direct eBay sold-data access, free quotas, schema, CORS, and usage rules; benchmark local OCR | Exact raw/PSA mapping, permitted free data access, and recognition results support the architecture |
 | 2 App foundation | Scaffold React/TS/Vite, responsive scanner shell, typed domain models, provider adapter, database, manual lookup | Lookup can identify a card and display validated details with honest unavailable/error states |
-| 3 Price display | Variant mapping, market reference, source/date labels, product link, cache/refresh rules | Correct quote selected for fixtures; wrong/missing variants never fall back silently |
+| 3 Price display | Raw/PSA 9/PSA 10 rows, pricing proxy, variant/grade mapping, source/date labels, sold-search links, cache/refresh rules | Correct references selected; grade/printing isolation and quota/error handling pass |
 | 4 Camera scanning | Camera lifecycle, upload/review/crop, OCR worker, ranking, correction, printing confirmation | Full camera/upload-to-details flow works; cancellation/retake releases resources |
-| 5 PWA and deployment | Manifest/icons, local OCR assets, offline shell/cache behavior, update prompt, CI and deploy workflows | Built app works under a repository subpath; push to `deploy` publishes automatically after checks |
+| 5 PWA and deployment | Manifest/icons, local OCR assets, cached shell, update prompt, CI, Pages and proxy deploy workflows | Repository subpath works; push to `deploy` validates and publishes both components |
 | 6 Release validation | Phone tests, benchmark evaluation, pricing comparison, accessibility/error checks, setup/release docs | Release checklist below passes; limitations are visible and documented |
 
 Milestone 1 precedes commitments to expensive image matching or a full-catalog download. Milestones 2 and 3 establish trustworthy manual identification/pricing before wiring the scanner into the same flow. No timeline is promised until feasibility and target-device measurements are available.
@@ -168,11 +172,12 @@ Use a frozen benchmark of at least 100 labeled captures across at least 50 disti
 - Every displayed price includes metric, currency, selected printing, marketplace/provider, and available source time. All 30 price comparison cases have an explained outcome and no unresolved mapping errors.
 - Photos never leave the device, verified through network inspection during camera and upload flows.
 
-Automated tests should cover the risks rather than mirror UI implementation: OCR number normalization, ambiguous matching, repeated artwork, promo identifiers, runtime schema changes, variant mapping, missing/null/zero prices, timestamp handling, cache isolation and migration, cancellation races, offline lookup, denied camera permission, and an installed-app update. Browser tests can use a fake camera or uploaded fixture; real iPhone/Android tests are still required for focus, glare, camera controls, installation, and performance.
+Automated tests should cover the risks rather than mirror UI implementation: OCR number normalization, ambiguous matching, repeated artwork, promo identifiers, runtime schema changes, variant mapping, missing/null/zero prices, timestamp handling, cache isolation and migration, cancellation races, offline lookup, denied camera permission, and an installed-app update. Add PSA grade/company isolation, sparse sales, proxy quotas, and partial pricing failures. Browser tests can use a fake camera or uploaded fixture; real iPhone testing is required for camera behavior, installation, and performance. Validate desktop Chrome and Edge capture/upload flows; Android is outside the required MVP matrix.
 
 ## Release checklist
 
-- Supported English raw-card scope and market confirmed, or clearly retained as explicit defaults.
+- English raw-card scanning and USD references implemented on iPhone and desktop Chrome/Edge.
+- Exact PSA 9 and PSA 10 comparison quotes validated through a permitted free source. Search links alone do not satisfy the requested in-app prices.
 - Provider usage/attribution reviewed, documented, and compatible with public distribution.
 - Benchmark goals evaluated and limitations stated; scans can always be corrected manually.
 - Printing/edition pricing verified; no condition-specific valuation claims without corresponding data.
@@ -185,6 +190,30 @@ Automated tests should cover the risks rather than mirror UI implementation: OCR
 
 ## Decisions still needed
 
-The existing interview remains open for card languages, raw/graded scope, market/currency, offline expectations, and capture mode. Those answers can revise the assumptions without delaying the initial plan. The final GitHub repository owner/name is needed to activate hosting, and reference phone models are needed to turn performance goals into meaningful measurements.
+Languages, USD, raw scanning, PSA comparisons, single-card capture, online lookup, and target browsers are confirmed. Free operation with a small pricing proxy is also confirmed. The final GitHub repository owner/name is needed to activate hosting, and the reference iPhone model is needed for performance measurements. Provider credentials and a permitted free PSA integration remain required before activation.
+
+## PSA pricing and eBay sold comparisons
+
+Recent sold listings are the preferred evidence for graded comparisons. Match English language, set, collector number, printing, edition, grading company PSA, and grade exactly. Exclude bundles, raw cards, other graders, misleading titles, and wrong editions. Keep shipping treatment consistent and distinguish sale dates from provider refresh dates.
+
+Add separate View PSA 9 sold listings and View PSA 10 sold listings actions. Generate URL-encoded eBay searches from the confirmed identity, using Sold and Completed filters and recent-ending sort. These links open eBay for manual inspection; their search results can still contain irrelevant items and are not an automated in-app valuation.
+
+eBay's [Product Research documentation](https://www.ebay.com/help/selling/selling-tools/product-research?id=4853) distinguishes ordinary recent completed-listing results from Product Research, which provides actual accepted Best Offer amounts. Do not assume the price shown on a public sold page is the accepted offer amount. Exclude unknown transaction amounts from an automated estimate. Seller Hub access does not by itself supply a public API for the app.
+
+Evaluate direct eBay sold-data API availability first, then a provider supplying explicit PSA sold-price data. The [Browse API](https://developer.ebay.com/develop/api/buy) is a listing-search interface, not an established all-market sold-transaction feed. eBay's [decommission table](https://developer.ebay.com/develop/get-started/api-deprecation-status) lists the older Finding API as decommissioned February 4, 2025, so historical completed-search tutorials are unsuitable. A proxy solves credential protection, not sold-data access.
+
+[PokemonPriceTracker](https://www.pokemonpricetracker.com/psa-pokemon-card-api) is a candidate: it exposes `ebay.salesByGrade.psa9` and `psa10`, sales counts, medians, and last-sale dates. Its free tier lists 100 credits/day; the graded lookup example costs two credits per card. Its [terms](https://www.pokemonpricetracker.com/terms) permit free non-revenue-generating apps and caching within the application's own systems, while prohibiting a substitute public data feed. Verify the exact-card/printing mapping, sales windows, accepted-offer treatment, and allowed proxy response before selecting it. No account or key is available yet; this is not an activated integration.
+
+[PriceCharting](https://www.pricecharting.com/api-documentation) is not the free baseline: API access requires payment and third-party app distribution requires express permission. Its grade-9 API field is generic across grading companies, so it cannot automatically be labeled PSA 9.
+
+Use a separate PSA sales-reference metric, preferably a validated sold-price median with sample size and time window. Never label this TCGplayer Market Price. Prefer the latest 90-day window when supported; disclose a broader window for sparse sales. With fewer than three verified sales, label the estimate limited data and show the count; with no verified data, show unavailable. Unknown sales windows or missing counts must be labeled explicitly. Do not derive PSA prices by multiplying raw prices or mixing grading companies.
+
+Proposed infrastructure: a Cloudflare Worker on its free plan, with server-side secrets and only validated exact-card pricing routes. Return minimal normalized comparison data to Goozpokemon rather than a general provider-data API. The browser sends public card IDs and confirmed printing only; no photographs, OCR text, or personal collection data. The [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and provider quota must both fit expected MVP usage.
+
+Cache permitted quotes, rate-limit requests, deduplicate refreshes, and enforce a global provider-credit budget using a free-tier-compatible durable store or equivalent atomic accounting. Do not rely only on an edge-local cache or CORS to protect quota. At the budget limit, return cached/stale or unavailable data and retain eBay inspection links; never upgrade automatically or incur paid usage. Verify a provider request's credit cost before reserving budget. Keep credential values out of logs, source, build assets, and GitHub Pages.
+
+Extend the `deploy` workflow with a validated proxy deployment job after checks, using restricted CI credentials. Publish the Pages build only after any required proxy release succeeds. Preserve backward-compatible proxy responses because installed PWAs may run older clients. CI uses mocked PSA data and must not consume the daily live-data budget. One-time setup adds the serverless account, provider account, and secret configuration; app users still need no sign-in.
+
+Milestone 1 now includes direct eBay/API access investigation, PSA provider feasibility, and free quota/storage validation. Milestone 3 implements the three price rows and proxy. Milestone 5 deploys both components automatically from `deploy`. Before release, compare at least ten exact PSA 9 and ten exact PSA 10 card/printing pairs, including low-volume cards, and explain all mapping or price discrepancies. If no permitted free source meets these requirements, report that gap rather than silently replacing in-app prices with search links.
 
 If condition-specific prices are essential to the first release, obtaining an appropriate permitted feed becomes a feasibility gate. A generic market reference must not be presented as meeting that requirement.

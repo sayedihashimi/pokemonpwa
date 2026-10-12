@@ -60,12 +60,15 @@ First benchmark should measure exact-card match rate, confident wrong matches, f
 
 Personal data and photographs stay on device by default. Public data requests still contact external services. Offline coverage is limited to downloaded catalog/assets and cached prices until a larger download strategy is chosen. Later collection storage will need export/import and persistence handling because browser storage can be cleared.
 
-## Interview decisions pending
+## Confirmed MVP scope
 
-- English only or additional languages; raw cards or graded cards; US/USD or other markets.
-- Public online data fetching with local photos versus a full offline catalog requirement.
-- Single capture, continuous capture, or multiple cards per image; target phones and browser priority.
-- Copyright holder (currently provisionally Sayed) and condition-specific pricing expectations. Application name: Goozpokemon.
+- English cards, USD, and ungraded card scanning, with separate PSA 9 and PSA 10 comparison prices.
+- One card per capture, with internet required for fresh details/prices and photos kept on device.
+- iPhone Safari/PWA and desktop Chrome/Edge are the target platforms.
+- GitHub Pages frontend, with automatic release on pushes to `deploy`. A small free serverless pricing proxy is allowed; hosting and operation must remain free.
+- eBay recent sold comparisons will be investigated for PSA prices, with grade-specific search links for inspection. A permitted automated PSA feed and proxy are still to be selected and activated; see the detailed plan.
+
+Copyright holder remains provisionally Sayed. Raw condition-specific valuation remains a separate provider limitation.
 
 ## License
 

@@ -46,6 +46,11 @@ playwright/.auth/
 .stylelintcache
 *.tgz
 
+# Serverless proxy development output and local secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 # Local environment configuration; sanitized examples stay tracked
 .env
 .env.*
