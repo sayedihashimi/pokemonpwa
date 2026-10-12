@@ -34,4 +34,11 @@ describe('identity matching', () => {
   it('excludes the evolves-from name in a full-photo reading', () => {
     expect(matchText([...cards, { id: 'other-136', name: 'Sentret', localId: '136' }], 'Furret\nEvolves from Sentret\n136/189')).toEqual([card]);
   });
+  it('uses a conservative long-name fallback without confusing X and Y or accepting short noise', () => {
+    const mega = { id: 'me02-130', name: 'Mega Charizard X ex', localId: '130' };
+    const candidates = [mega, { ...mega, id: 'y-130', name: 'Mega Charizard Y ex' }, { id: 'sm2-126', name: 'Hala', localId: '126' }, { id: 'base1-4', name: 'Charizard', localId: '4' }];
+    expect(matchText(candidates, 'Mega CharirardX\nCharizard\nHala', true)).toEqual([mega]);
+    expect(matchText(candidates, 'Hala', true)).toEqual([]);
+    expect(matchText(candidates, 'Mega Charizard X ex 013/094', true)).toEqual([]);
+  });
 });

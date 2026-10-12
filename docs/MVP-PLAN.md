@@ -31,6 +31,8 @@ Collection catalogs, binders, portfolio totals, accounts, social features, buyin
 
 ## Product flow
 
+Implemented capture update: iOS uses system still-photo capture as its primary action, with separate photo-library upload and optional live camera preview. Desktop retains live camera capture. Reflective-card fallback results must be labeled as name-only suggestions when the full collector number cannot be verified.
+
 1. Open Goozemon to a scanner screen with a clear card frame, Capture, Upload photo, and Manual lookup actions. Explain camera permission at the moment it is needed.
 2. Show the rear-camera preview. Guide the collector to fit the entire card inside the frame, reduce glare, and hold still. If camera access fails, offer upload and manual lookup immediately.
 3. Capture one image and show a preview with Retake and Continue. Crop to the frame and allow correction of crop/rotation before recognition.

@@ -4,6 +4,8 @@ A free Pokemon card scanner planned as a local-first progressive web app. No sig
 
 Status: first working app implemented. Camera capture, photo upload, local OCR, manual catalog search, printing confirmation, and live raw market references are available. PSA 9/10 panels currently link to eBay sold searches; automatic PSA prices need a verified provider and credentials. Research checked October 12, 2026.
 
+On iPhone and iPad, **Take photo** requests the system rear-camera photo interface. **Upload photo** stays separate, and **Use live camera instead** retains the video-preview option. Desktop browsers retain **Start camera**. This uses the standard [HTML capture attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture); actual system camera behavior still needs physical iOS verification.
+
 ## Run locally
 
 Use Node 24 (see `.nvmrc`), then run `npm ci` and `npm run dev`. The app opens at the URL printed by Vite. Run `npm test` for pricing/matching checks, `npm run build` for type checking and the production PWA, and `npm run test:e2e` for browser flows (first install Chromium with `npx playwright install chromium`).
@@ -23,6 +25,7 @@ For a local subpath check in PowerShell, set `$env:VITE_BASE_PATH = '/pokemonpwa
 - PSA numeric prices and the planned serverless proxy are not connected yet. eBay links are inspection searches, not computed valuations.
 - A network connection is required for uncached details and fresh prices. The PWA shell can reopen offline, but offline scanning is not guaranteed before OCR assets are downloaded.
 - Camera permission, focus, and installation still require physical iPhone verification. Mobile Chromium emulation is not an iPhone Safari test.
+- Reflective cards can produce only name-level suggestions. The Mega Charizard fixture now suggests the correct named family instead of Hala, but cannot reliably read its obscured number. The app explicitly asks for artwork/set/number confirmation rather than assigning an exact printing automatically.
 
 The [initial MVP plan](docs/MVP-PLAN.md) defines scanning, card details, market pricing, and automatic GitHub Pages deployment on pushes to the `deploy` branch.
 

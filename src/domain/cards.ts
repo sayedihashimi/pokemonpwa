@@ -65,7 +65,7 @@ export function searchCatalog(catalog: CardBrief[], query: string, number = '', 
   return catalog.filter(card => (!name || normalize(card.name).includes(name) || normalize(card.id).includes(name)) && (!num || normalizeNumber(card.localId) === num) && (!setId || normalize(card.id.slice(0, card.id.lastIndexOf('-'))).includes(setId)))
     .sort((a, b) => Number(normalize(b.name) === name) - Number(normalize(a.name) === name) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
-export function matchText(catalog: CardBrief[], text: string): CardBrief[] {
+export function matchText(catalog: CardBrief[], text: string, approximate = false): CardBrief[] {
   // Preserve line and word boundaries: merging all OCR text can turn unrelated
   // fragments ("Se" on one line, "er" on another) into a plausible card name.
   // Allow split words on a single line, e.g. Tesseract's "Kyo gre".
@@ -76,13 +76,34 @@ export function matchText(catalog: CardBrief[], text: string): CardBrief[] {
     // Long attack/flavor descriptions are not card-title evidence.
     if (words.length > 12) continue;
     for (let start = 0; start < words.length; start++) {
-      for (let end = start + 1; end <= Math.min(words.length, start + 4); end++) phrases.add(words.slice(start, end).join(''));
+      for (let end = start + 1; end <= Math.min(words.length, start + 6); end++) phrases.add(words.slice(start, end).join(''));
     }
   }
   const numbers = [...text.matchAll(/\b([A-Z]{0,4}\d{1,3})\s*\/\s*([A-Z]{0,4}\d{1,3})\b/gi)].map(m => normalizeNumber(m[1]));
   // When a collector number is readable, require name AND number. A shared
   // number alone is not evidence for an unrelated Pokémon or trainer card.
-  return catalog.filter(card => normalize(card.name).length >= 3 && phrases.has(normalize(card.name))
+  const matchesName = (name: string) => {
+    if (!approximate) return phrases.has(normalize(name));
+    // Stylized ex logos may be unreadable. Offer the named family for manual
+    // confirmation, never claim an exact printing from this fallback.
+    const stem = normalize(name.replace(/\s+ex$/i, ''));
+    if (stem.length < 8) return false;
+    return [...phrases].some(phrase => {
+      if (phrase === stem) return true;
+      if (Math.abs(phrase.length - stem.length) > 1) return false;
+      if (/[xy]$/.test(stem) && phrase.at(-1) !== stem.at(-1)) return false;
+      let i = 0, j = 0, edits = 0;
+      while (i < stem.length && j < phrase.length) {
+        if (stem[i] === phrase[j]) { i++; j++; continue; }
+        if (++edits > 1) return false;
+        if (stem.length >= phrase.length) i++;
+        if (phrase.length >= stem.length) j++;
+      }
+      return edits + (stem.length - i) + (phrase.length - j) <= 1;
+    });
+  };
+  const matches = catalog.filter(card => normalize(card.name).length >= 3 && matchesName(card.name)
     && (!numbers.length || numbers.includes(normalizeNumber(card.localId))))
-    .sort((a, b) => normalize(b.name).length - normalize(a.name).length || a.id.localeCompare(b.id)).slice(0, 12);
+    .sort((a, b) => normalize(b.name).length - normalize(a.name).length || a.id.localeCompare(b.id));
+  return (approximate && matches.length ? matches.filter(card => normalize(card.name).length === normalize(matches[0].name).length) : matches).slice(0, 12);
 }

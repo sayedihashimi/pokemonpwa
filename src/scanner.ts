@@ -1,8 +1,13 @@
-import { createWorker, PSM, type Worker } from 'tesseract.js';
+import { createWorker, PSM, type Worker, type Page } from 'tesseract.js';
+export interface ScanRead { text: string; approximate: boolean }
+export function reliableText(page: Pick<Page, 'blocks'>): string {
+  return (page.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines.map(line =>
+    line.words.map(word => word.confidence >= 60 ? word.text : '\n').join(' ')))).join('\n');
+}
 let active: Worker | undefined;
 let generation = 0;
 export async function cancelRecognition() { generation++; const worker = active; active = undefined; await worker?.terminate(); }
-export async function recognize(image: string, progress: (value: string) => void): Promise<string> {
+export async function recognize(image: string, progress: (value: string) => void): Promise<ScanRead> {
   await cancelRecognition();
   const task = generation;
   const root = new URL(`${import.meta.env.BASE_URL}ocr/`, location.origin).href;
@@ -23,13 +28,29 @@ export async function recognize(image: string, progress: (value: string) => void
     // Uploaded photos can include a sleeve and background. Locate text across the
     // photo instead of assuming its top edge is the card's title strip.
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    const whole = await worker.recognize(image);
+    const whole = await worker.recognize(image, {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
     // A larger lower region includes the collector number even when the card is
     // inset. Upscaling helps small type; contrast filtering can erase foil text.
-    const footer = await worker.recognize(crop(0, .60, 1, .40));
+    const footer = await worker.recognize(crop(0, .60, 1, .40), {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
-    return `${whole.data.text}\n${footer.data.text}`;
+    const text = `${reliableText(whole.data)}\n${reliableText(footer.data)}`;
+    if (whole.data.confidence >= 45 || /\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(text)) return { text, approximate: false };
+    progress('Trying a clearer reading of reflective text…');
+    // Red-channel binarization removes some gold/foil texture. Keep this as an
+    // explicitly approximate fallback; never blend its noise into exact OCR.
+    const canvas = document.createElement('canvas'); canvas.width = source.width; canvas.height = source.height;
+    const ctx = canvas.getContext('2d')!; ctx.drawImage(source, 0, 0);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const value = pixels.data[i] > 140 ? 255 : 0;
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
+    }
+    ctx.putImageData(pixels, 0, 0);
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
+    const fallback = await worker.recognize(canvas.toDataURL('image/png'));
+    if (task !== generation) throw new Error('Scan cancelled.');
+    return { text: fallback.data.text, approximate: true };
   }
   finally { if (active === worker) active = undefined; await worker.terminate(); }
 }
