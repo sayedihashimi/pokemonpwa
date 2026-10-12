@@ -1,8 +1,10 @@
-# Pokemon Collector PWA
+# Goozpokemon
 
 A free Pokemon card scanner planned as a local-first progressive web app. No sign-in. Collection cataloging is deferred until identification and pricing are reliable.
 
 Status: research and repository initialization only; application code has not been scaffolded. Research checked October 12, 2026.
+
+The [initial MVP plan](docs/MVP-PLAN.md) defines scanning, card details, market pricing, and automatic GitHub Pages deployment on pushes to the `deploy` branch.
 
 ## Proposed technology
 
@@ -63,7 +65,7 @@ Personal data and photographs stay on device by default. Public data requests st
 - English only or additional languages; raw cards or graded cards; US/USD or other markets.
 - Public online data fetching with local photos versus a full offline catalog requirement.
 - Single capture, continuous capture, or multiple cards per image; target phones and browser priority.
-- Copyright holder (currently provisionally Sayed), application name, and condition-specific pricing expectations.
+- Copyright holder (currently provisionally Sayed) and condition-specific pricing expectations. Application name: Goozpokemon.
 
 ## License
 
