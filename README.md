@@ -18,7 +18,7 @@ For a local subpath check in PowerShell, set `$env:VITE_BASE_PATH = '/pokemonpwa
 
 ## Current limits
 
-- OCR is a first implementation and still needs real iPhone photo benchmarking. Confirm every match and printing. Uploads should tightly frame the card; camera capture crops to the visible guide.
+- OCR reads the whole photo plus an enlarged lower region to accommodate background and sleeves. The user-provided Kyogre 003/025 photo is covered by a browser regression. Broader real iPhone photo benchmarking is still needed; closer, clear photos work best. Confirm every match and printing. Camera capture crops to the visible guide.
 - First-edition prices are withheld when the feed cannot prove the edition. Missing or unknown prices are never substituted with another printing.
 - PSA numeric prices and the planned serverless proxy are not connected yet. eBay links are inspection searches, not computed valuations.
 - A network connection is required for uncached details and fresh prices. The PWA shell can reopen offline, but offline scanning is not guaranteed before OCR assets are downloaded.

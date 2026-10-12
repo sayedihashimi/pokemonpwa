@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import sharp from 'sharp';
+import { fileURLToPath } from 'node:url';
 const brief = { id: 'swsh3-136', name: 'Furret', localId: '136' };
 const card = { ...brief, set: { id: 'swsh3', name: 'Darkness Ablaze', cardCount: { official: 189 } }, category: 'Pokemon', rarity: 'Uncommon', hp: 110, types: ['Colorless'], variants: { normal: true, reverse: true }, pricing: { tcgplayer: { unit: 'USD', updated: new Date().toISOString(), normal: { marketPrice: .27, productId: 219333 }, 'reverse-holofoil': { marketPrice: .43, productId: 219333 } } } };
 test.beforeEach(async ({ page }) => {
@@ -50,4 +51,25 @@ test('photo upload runs local OCR and finds the exact numbered card', async ({ p
   await page.getByRole('button', { name: 'Identify card' }).click();
   await expect(page.getByRole('button', { name: /Furret/ })).toBeVisible({ timeout: 45000 });
   expect(uploadedRequests).toEqual([]);
+});
+
+test('Kyogre photo with background and sleeve matches Celebrations 003/025', async ({ page }) => {
+  test.setTimeout(90000);
+  const kyogre = { id: 'cel25-3', name: 'Kyogre', localId: '3' };
+  const alternatives = [kyogre, { id: 'ex9-6', name: 'Kyogre', localId: '6' },
+    { id: 'ecard2-133', name: 'Seer', localId: '133' }, { id: 'base1-3', name: 'Chansey', localId: '3' }];
+  await page.route('https://api.tcgdex.net/v2/en/cards', route => route.fulfill({ json: [...alternatives,
+    ...Array.from({ length: 100 }, (_, i) => ({ id: `test-${i}`, name: `Other ${i}`, localId: `${i}` }))] }));
+  await page.route('https://api.tcgdex.net/v2/en/cards/cel25-3', route => route.fulfill({ json: {
+    ...kyogre, set: { id: 'cel25', name: 'Celebrations', cardCount: { official: 25 } }, variants: { holo: true },
+  } }));
+  await page.goto('./');
+  await page.getByLabel('Upload card photo').setInputFiles(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url)));
+  await page.getByRole('button', { name: 'Identify card' }).click();
+  await expect(page.locator('.match').first()).toContainText('Kyogre', { timeout: 60000 });
+  await expect(page.locator('.match')).toHaveCount(1);
+  await page.locator('.match').first().click();
+  await expect(page.getByRole('heading', { name: 'Kyogre', exact: true })).toBeVisible();
+  await expect(page.locator('.result')).toContainText('Celebrations');
+  await expect(page.locator('.number-tag')).toHaveText('#3 / 25');
 });

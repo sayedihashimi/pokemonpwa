@@ -66,12 +66,23 @@ export function searchCatalog(catalog: CardBrief[], query: string, number = '', 
     .sort((a, b) => Number(normalize(b.name) === name) - Number(normalize(a.name) === name) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 export function matchText(catalog: CardBrief[], text: string): CardBrief[] {
-  const normalizedText = normalize(text);
+  // Preserve line and word boundaries: merging all OCR text can turn unrelated
+  // fragments ("Se" on one line, "er" on another) into a plausible card name.
+  // Allow split words on a single line, e.g. Tesseract's "Kyo gre".
+  const phrases = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    if (/evolves?\s+from/i.test(line)) continue;
+    const words = line.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9]+/g) || [];
+    // Long attack/flavor descriptions are not card-title evidence.
+    if (words.length > 12) continue;
+    for (let start = 0; start < words.length; start++) {
+      for (let end = start + 1; end <= Math.min(words.length, start + 4); end++) phrases.add(words.slice(start, end).join(''));
+    }
+  }
   const numbers = [...text.matchAll(/\b([A-Z]{0,4}\d{1,3})\s*\/\s*([A-Z]{0,4}\d{1,3})\b/gi)].map(m => normalizeNumber(m[1]));
-  return catalog.map(card => {
-    const name = normalize(card.name);
-    const nameMatch = name.length >= 3 && normalizedText.includes(name);
-    const numberMatch = numbers.includes(normalizeNumber(card.localId));
-    return { card, score: (nameMatch ? 50 + Math.min(name.length, 20) : 0) + (numberMatch ? 100 : 0) };
-  }).filter(({ score }) => score >= 53).sort((a, b) => b.score - a.score).slice(0, 12).map(({ card }) => card);
+  // When a collector number is readable, require name AND number. A shared
+  // number alone is not evidence for an unrelated Pokémon or trainer card.
+  return catalog.filter(card => normalize(card.name).length >= 3 && phrases.has(normalize(card.name))
+    && (!numbers.length || numbers.includes(normalizeNumber(card.localId))))
+    .sort((a, b) => normalize(b.name).length - normalize(a.name).length || a.id.localeCompare(b.id)).slice(0, 12);
 }

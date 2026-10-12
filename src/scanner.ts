@@ -16,17 +16,20 @@ export async function recognize(image: string, progress: (value: string) => void
     const source = await loadImage(image);
     const crop = (x: number, y: number, width: number, height: number) => {
       const canvas = document.createElement('canvas'); canvas.width = Math.round(source.width * width * 3); canvas.height = Math.round(source.height * height * 3);
-      const ctx = canvas.getContext('2d')!; ctx.filter = 'grayscale(1) contrast(1.3)';
+      const ctx = canvas.getContext('2d')!;
       ctx.drawImage(source, source.width * x, source.height * y, source.width * width, source.height * height, 0, 0, canvas.width, canvas.height);
       return canvas.toDataURL('image/png');
     };
-    // Avoid attack names and “evolves from” text competing with the card title.
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
-    const title = await worker.recognize(crop(.03, .02, .94, .075));
-    if (task !== generation) throw new Error('Scan cancelled.');
+    // Uploaded photos can include a sleeve and background. Locate text across the
+    // photo instead of assuming its top edge is the card's title strip.
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    const footer = await worker.recognize(crop(.02, .90, .96, .085));
-    return `${title.data.text}\n${footer.data.text}`;
+    const whole = await worker.recognize(image);
+    if (task !== generation) throw new Error('Scan cancelled.');
+    // A larger lower region includes the collector number even when the card is
+    // inset. Upscaling helps small type; contrast filtering can erase foil text.
+    const footer = await worker.recognize(crop(0, .60, 1, .40));
+    if (task !== generation) throw new Error('Scan cancelled.');
+    return `${whole.data.text}\n${footer.data.text}`;
   }
   finally { if (active === worker) active = undefined; await worker.terminate(); }
 }
