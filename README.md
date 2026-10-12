@@ -1,8 +1,28 @@
-# Goozpokemon
+# Goozemon
 
 A free Pokemon card scanner planned as a local-first progressive web app. No sign-in. Collection cataloging is deferred until identification and pricing are reliable.
 
-Status: research and repository initialization only; application code has not been scaffolded. Research checked October 12, 2026.
+Status: first working app implemented. Camera capture, photo upload, local OCR, manual catalog search, printing confirmation, and live raw market references are available. PSA 9/10 panels currently link to eBay sold searches; automatic PSA prices need a verified provider and credentials. Research checked October 12, 2026.
+
+## Run locally
+
+Use Node 24 (see `.nvmrc`), then run `npm ci` and `npm run dev`. The app opens at the URL printed by Vite. Run `npm test` for pricing/matching checks, `npm run build` for type checking and the production PWA, and `npm run test:e2e` for browser flows (first install Chromium with `npx playwright install chromium`).
+
+The build copies locked OCR worker/model files and generates app icons. These generated assets stay out of Git. Photos are processed in memory in the browser. Catalog and recent card details are cached in IndexedDB; no collector account or backend is required for the working raw-card flow.
+
+## Deploy
+
+The GitHub remote is `sayedihashimi/pokemonpwa`; the app display name is Goozemon. Enable **Settings → Pages → Source: GitHub Actions** once. Push the desired release commit to `deploy` to validate, build under `/pokemonpwa/`, run browser tests, and publish the static artifact. Pushes to `main` and pull requests run validation only. The intended site URL is https://sayedihashimi.github.io/pokemonpwa/.
+
+For a local subpath check in PowerShell, set `$env:VITE_BASE_PATH = '/pokemonpwa/'` and `$env:TEST_BASE_PATH = '/pokemonpwa/'`, then run `npm run build` and `npm run test:e2e`. The workflow sets these values automatically. No API secret belongs in the frontend or any `VITE_` variable.
+
+## Current limits
+
+- OCR is a first implementation and still needs real iPhone photo benchmarking. Confirm every match and printing. Uploads should tightly frame the card; camera capture crops to the visible guide.
+- First-edition prices are withheld when the feed cannot prove the edition. Missing or unknown prices are never substituted with another printing.
+- PSA numeric prices and the planned serverless proxy are not connected yet. eBay links are inspection searches, not computed valuations.
+- A network connection is required for uncached details and fresh prices. The PWA shell can reopen offline, but offline scanning is not guaranteed before OCR assets are downloaded.
+- Camera permission, focus, and installation still require physical iPhone verification. Mobile Chromium emulation is not an iPhone Safari test.
 
 The [initial MVP plan](docs/MVP-PLAN.md) defines scanning, card details, market pricing, and automatic GitHub Pages deployment on pushes to the `deploy` branch.
 

@@ -1,14 +1,20 @@
-# Goozpokemon Initial MVP Plan
+# Goozemon Initial MVP Plan
 
-Goozpokemon will be a free, installable Pokemon card scanner that identifies a card, lets the collector confirm its printing, and displays its details and an attributed market price. Personal data and photos remain on the device. The MVP will be a static PWA hosted on GitHub Pages, deployed automatically when the user pushes to the `deploy` branch.
+Goozemon will be a free, installable Pokemon card scanner that identifies a card, lets the collector confirm its printing, and displays its details and an attributed market price. Personal data and photos remain on the device. The MVP will be a static PWA hosted on GitHub Pages, deployed automatically when the user pushes to the `deploy` branch.
 
 This plan is dated October 12, 2026. It covers implementation and release validation; it does not deploy an application by itself.
+
+## Implementation progress
+
+The first Goozemon implementation includes camera capture, photo upload/rotation, local OCR of the title and collector number, manual catalog search, candidate confirmation, explicit printing selection, card details, and attributed TCGplayer USD market references through TCGdex. The app includes local metadata caching, an installable PWA shell, and a tested GitHub Actions release workflow for the `deploy` branch. The repository remains named `pokemonpwa`; the product name is Goozemon throughout the app and documentation.
+
+Local validation includes pricing/matching unit tests, desktop and mobile Chromium browser flows, and a real card-image OCR lookup against the live provider. Automatic PSA prices remain unfinished pending verified provider access; the app clearly shows them as unavailable and offers PSA-specific eBay sold-search links. Remaining milestones include adjustable photo cropping/deskew, broader real-photo accuracy benchmarking, physical iPhone Safari/camera verification, and published-site verification after GitHub Pages is enabled. The sections below describe the full intended MVP, including these outstanding items.
 
 ## Scope and planning assumptions
 
 | Decision | MVP scope | Status |
 | --- | --- | --- |
-| Name | Goozpokemon | Confirmed |
+| Name | Goozemon | Confirmed |
 | Core task | Scan a card, identify its exact printing, show details and price | Confirmed |
 | Accounts | No sign-in or cloud collection storage | Confirmed |
 | Hosting | Free GitHub Pages hosting | Confirmed |
@@ -25,7 +31,7 @@ Collection catalogs, binders, portfolio totals, accounts, social features, buyin
 
 ## Product flow
 
-1. Open Goozpokemon to a scanner screen with a clear card frame, Capture, Upload photo, and Manual lookup actions. Explain camera permission at the moment it is needed.
+1. Open Goozemon to a scanner screen with a clear card frame, Capture, Upload photo, and Manual lookup actions. Explain camera permission at the moment it is needed.
 2. Show the rear-camera preview. Guide the collector to fit the entire card inside the frame, reduce glare, and hold still. If camera access fails, offer upload and manual lookup immediately.
 3. Capture one image and show a preview with Retake and Continue. Crop to the frame and allow correction of crop/rotation before recognition.
 4. Process the image locally, with a visible progress state and Cancel. Detect weak input such as blur or an unreadable number and suggest a retake.
@@ -113,7 +119,7 @@ Graded-price cache keys also include grading company and numeric grade. Raw, PSA
 | Price snapshots | Cached across sessions | Key by exact identity, marketplace, currency, metric, and printing; retain source/fetch times |
 | Settings | Across sessions | Camera preference and install/update dismissals; no personal profile |
 
-Use a Goozpokemon-specific database name and bounded caches. Initial proposal: at most 200 card-detail records and 500 quote records, evicting least recently used entries; catalog indexes are managed separately. Cap image caching by storage budget. Handle quota failures by dropping expendable caches, keeping the current result usable, and notifying the user only when necessary.
+Use a Goozemon-specific database name and bounded caches. Initial proposal: at most 200 card-detail records and 500 quote records, evicting least recently used entries; catalog indexes are managed separately. Cap image caching by storage budget. Handle quota failures by dropping expendable caches, keeping the current result usable, and notifying the user only when necessary.
 
 IndexedDB failure must allow an online in-memory session. Provide Clear cached data in app information. No analytics, tracking SDK, user account, or photograph upload is needed. Catalog, image, and price requests contact third-party providers and reveal normal request metadata; explain that in the privacy summary. Browser cache retention is not a guarantee, so collection persistence/export must be designed when collections are added later.
 
@@ -208,7 +214,7 @@ Evaluate direct eBay sold-data API availability first, then a provider supplying
 
 Use a separate PSA sales-reference metric, preferably a validated sold-price median with sample size and time window. Never label this TCGplayer Market Price. Prefer the latest 90-day window when supported; disclose a broader window for sparse sales. With fewer than three verified sales, label the estimate limited data and show the count; with no verified data, show unavailable. Unknown sales windows or missing counts must be labeled explicitly. Do not derive PSA prices by multiplying raw prices or mixing grading companies.
 
-Proposed infrastructure: a Cloudflare Worker on its free plan, with server-side secrets and only validated exact-card pricing routes. Return minimal normalized comparison data to Goozpokemon rather than a general provider-data API. The browser sends public card IDs and confirmed printing only; no photographs, OCR text, or personal collection data. The [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and provider quota must both fit expected MVP usage.
+Proposed infrastructure: a Cloudflare Worker on its free plan, with server-side secrets and only validated exact-card pricing routes. Return minimal normalized comparison data to Goozemon rather than a general provider-data API. The browser sends public card IDs and confirmed printing only; no photographs, OCR text, or personal collection data. The [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and provider quota must both fit expected MVP usage.
 
 Cache permitted quotes, rate-limit requests, deduplicate refreshes, and enforce a global provider-credit budget using a free-tier-compatible durable store or equivalent atomic accounting. Do not rely only on an edge-local cache or CORS to protect quota. At the budget limit, return cached/stale or unavailable data and retain eBay inspection links; never upgrade automatically or incur paid usage. Verify a provider request's credit cost before reserving budget. Keep credential values out of logs, source, build assets, and GitHub Pages.
 

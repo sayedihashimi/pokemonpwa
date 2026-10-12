@@ -80,3 +80,10 @@ Desktop.ini
 /tmp/
 /temp/
 /benchmarks/private/
+
+# Reproducible assets generated from icon.svg and locked npm packages
+/public/ocr/
+/public/notices/
+/public/icon-192.png
+/public/icon-512.png
+/public/apple-touch-icon.png
