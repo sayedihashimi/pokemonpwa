@@ -18,7 +18,7 @@ export default function App() {
   const [result, setResult] = useState<LoadedCard>(); const [variant, setVariant] = useState(''); const [edition, setEdition] = useState('');
   const [photo, setPhoto] = useState(''); const [camera, setCamera] = useState(false); const [cameraStarting, setCameraStarting] = useState(false);
   const [busy, setBusy] = useState(''); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
-  const [scanDebug, setScanDebug] = useState('');
+  const [scanDebug, setScanDebug] = useState(''); const [copyStatus, setCopyStatus] = useState('');
   const [about, setAbout] = useState(false); const [online, setOnline] = useState(navigator.onLine);
   const video = useRef<HTMLVideoElement>(null); const stream = useRef<MediaStream | null>(null); const fileInput = useRef<HTMLInputElement>(null);
   const systemPhotoInput = useRef<HTMLInputElement>(null);
@@ -82,7 +82,7 @@ export default function App() {
     finally { if (token === operation.current) setBusy(''); }
   }
   async function scan() {
-    cancel(); setScanDebug(''); const token = operation.current; setScanNumber(''); setVisibleLimit(12); setError(''); setNotice(''); setResult(undefined); setCandidates([]); setSearched(false); setBusy('Preparing on-device scanner…');
+    cancel(); setScanDebug(''); setCopyStatus(''); const token = operation.current; setScanNumber(''); setVisibleLimit(12); setError(''); setNotice(''); setResult(undefined); setCandidates([]); setSearched(false); setBusy('Preparing on-device scanner…');
     try {
       const reading = await recognize(photo, value => { if (token === operation.current) setBusy(value); });
       if (token !== operation.current) return; setBusy('Finding matching cards…');
@@ -132,7 +132,11 @@ export default function App() {
           </> : <form className="search-form" onSubmit={search}><div className="search-illustration"><Search size={30}/></div><h3>Find a familiar face.</h3><p>A name gets you started. A card number gets you closer.</p><label>Card name<input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. Charizard"/></label><div className="form-row"><label>Card number<input value={number} onChange={e => setNumber(e.target.value)} placeholder="e.g. 136 or 136/189"/></label><label>Set code <span>(optional)</span><input value={setCode} onChange={e => setSetCode(e.target.value)} placeholder="e.g. swsh3"/></label></div><button className="primary" disabled={!!busy || (!query.trim() && !number.trim() && !setCode.trim())}>{busy ? <LoaderCircle size={18} className="spin"/> : <Search size={18}/>} {busy || 'Find matching cards'}<ArrowRight size={17}/></button><p className="form-footnote">English Pokémon, Trainer, and Energy cards.</p></form>}
           {error && <div className="error" role="alert">{error}</div>}
           {notice && <div className="notice" role="status">{notice}</div>}
-          {mode === 'scan' && searched && !candidates.length && scanDebug && <details><summary>Scan troubleshooting details</summary><p>This text stays on your device. Include it when reporting a failed scan.</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{scanDebug}</pre></details>}
+          {mode === 'scan' && searched && !candidates.length && scanDebug && <details><summary>Scan troubleshooting details</summary><p>This text stays on your device. Include it when reporting a failed scan.</p><button type="button" className="secondary" onClick={async () => {
+            const token = operation.current;
+            try { await navigator.clipboard.writeText(scanDebug); if (token === operation.current) setCopyStatus('Copied!'); }
+            catch { if (token === operation.current) setCopyStatus('Couldn’t copy automatically. Select the text below to copy it.'); }
+          }}>Copy</button><p role="status">{copyStatus}</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{scanDebug}</pre></details>}
           {searched && !busy && <div className="matches">{mode === 'scan' && candidates.length > 0 && <label className="scan-refine">Card number (before /)<input value={scanNumber} onChange={e => { setScanNumber(e.target.value); setVisibleLimit(12); }} placeholder="e.g. 57 or SV001" autoComplete="off"/></label>}<div className="matches-heading"><h3>{candidates.length ? 'Choose your match' : 'No matches yet'}</h3><span>{filteredCandidates.length ? `${Math.min(visibleLimit, filteredCandidates.length)} of ${filteredCandidates.length} results` : 'No matching number'}</span></div>{visibleCandidates.map(c => <button className={`match ${card?.id === c.id ? 'selected' : ''}`} key={c.id} onClick={() => void select(c.id)}>{c.image ? <img loading="lazy" src={`${c.image}/low.webp`} alt=""/> : <span className="no-thumb"><ScanLine size={18}/></span>}<span><strong>{c.name}</strong><small>#{c.localId} · {c.id.slice(0, c.id.lastIndexOf('-')).toUpperCase()}</small></span>{card?.id === c.id ? <Check size={18}/> : <ArrowRight size={17}/>}</button>)}{filteredCandidates.length > visibleLimit && <button className="secondary show-more" onClick={() => setVisibleLimit(limit => limit + 12)}>Show more matches</button>}</div>}
         </section>
         <section className={`details-panel ${card ? 'has-result' : ''}`} ref={details} aria-label="Card details">
