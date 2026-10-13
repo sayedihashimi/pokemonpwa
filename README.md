@@ -8,7 +8,7 @@ On iPhone and iPad, **Take photo** requests the system rear-camera photo interfa
 
 ## Run locally
 
-Use Node 24 (see `.nvmrc`), then run `npm ci` and `npm run dev`. The app opens at the URL printed by Vite. Run `npm test` for pricing/matching checks, `npm run build` for type checking and the production PWA, and `npm run test:e2e` for browser flows (first install Chromium with `npx playwright install chromium`).
+Use Node 24 (see `.nvmrc`), then run `npm ci` and `npm run dev`. The app opens at the URL printed by Vite. Run `npm test` for pricing/matching checks, `npm run build` for type checking and the production PWA, and `npm run test:e2e` for browser flows (first install Chromium and WebKit with `npx playwright install chromium webkit`).
 
 The build copies locked OCR worker/model files and generates app icons. These generated assets stay out of Git. Photos are processed in memory in the browser. Catalog and recent card details are cached in IndexedDB; no collector account or backend is required for the working raw-card flow.
 
@@ -24,7 +24,7 @@ For a local subpath check in PowerShell, set `$env:VITE_BASE_PATH = '/pokemonpwa
 - First-edition prices are withheld when the feed cannot prove the edition. Missing or unknown prices are never substituted with another printing.
 - PSA numeric prices and the planned serverless proxy are not connected yet. eBay links are inspection searches, not computed valuations.
 - A network connection is required for uncached details and fresh prices. The PWA shell can reopen offline, but offline scanning is not guaranteed before OCR assets are downloaded.
-- Camera permission, focus, and installation still require physical iPhone verification. Mobile Chromium emulation is not an iPhone Safari test.
+- Camera permission, focus, and installation still require physical iPhone verification. Browser regressions cover Chromium and mobile WebKit, but WebKit automation is not physical iPhone verification.
 - Reflective cards can produce only name-level suggestions. The Mega Charizard fixture now suggests the correct named family instead of Hala, but cannot reliably read its obscured number. The app explicitly asks for artwork/set/number confirmation rather than assigning an exact printing automatically.
 - Name-only scans preserve every candidate with paginated results. Enter the collector number (before the slash) to narrow matches when OCR cannot read it; the Gengar 057/198 fixture covers this flow. For pumpkin or other promotional stamps, choose **Stamped / special reprint**: the current feed does not verify that reprint's value, so the app withholds the original printing's price and links.
 

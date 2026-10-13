@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchText, parseCard, quoteFor, searchCatalog, soldSearch, type Card } from './cards';
+import { matchRead, matchText, parseCard, quoteFor, searchCatalog, soldSearch, type Card } from './cards';
 
 const card: Card = { id: 'swsh3-136', name: 'Furret', localId: '136', set: { id: 'swsh3', name: 'Darkness Ablaze' }, variants: { normal: true, reverse: true }, pricing: { tcgplayer: { unit: 'USD', updated: '2026-10-11T00:00:00Z', normal: { marketPrice: .27, productId: 219333 }, 'reverse-holofoil': { marketPrice: .43, productId: 219333 } } } };
 describe('printing-specific market references', () => {
@@ -52,5 +52,20 @@ describe('identity matching', () => {
     expect(matchText(candidates, 'Mega CharirardX\nCharizard\nHala', true)).toEqual([mega]);
     expect(matchText(candidates, 'Hala', true)).toEqual([]);
     expect(matchText(candidates, 'Mega Charizard X ex 013/094', true)).toEqual([]);
+  });
+});
+
+
+describe('multiple OCR readings', () => {
+  const gengar = { id: 'swsh6-57', name: 'Gengar', localId: '57' };
+  const mega = { id: 'me02-130', name: 'Mega Charizard X ex', localId: '130' };
+  it('keeps a reliable short title when the foil reading is unusable', () => {
+    expect(matchRead([gengar, mega], { text: 'Gengar', fallbackText: 'noise', approximate: false })).toEqual({ matches: [gengar], text: 'Gengar', approximate: false });
+  });
+  it('uses the approximate reading only when the reliable title has no matches', () => {
+    expect(matchRead([gengar, mega], { text: '', fallbackText: 'Mega Charirard X', approximate: false })).toEqual({ matches: [mega], text: 'Mega Charirard X', approximate: true });
+  });
+  it('does not promote short noisy fallback names into matches', () => {
+    expect(matchRead([gengar], { text: '', fallbackText: 'Gengar', approximate: false }).matches).toEqual([]);
   });
 });

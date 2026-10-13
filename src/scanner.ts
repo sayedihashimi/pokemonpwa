@@ -1,7 +1,7 @@
 import { createWorker, PSM, type Worker, type Page } from 'tesseract.js';
-export interface ScanRead { text: string; approximate: boolean }
-export function reliableText(page: Pick<Page, 'blocks'>): string {
-  return (page.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines.map(line =>
+export interface ScanRead { text: string; approximate: boolean; fallbackText?: string }
+export function reliableText(page: Pick<Page, 'blocks'>, maxY = Infinity): string {
+  return (page.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines.filter(line => line.bbox.y1 <= maxY && !/evolves?\s+from/i.test(line.text)).map(line =>
     line.words.map(word => word.confidence >= 60 ? word.text : '\n').join(' ')))).join('\n');
 }
 let active: Worker | undefined;
@@ -34,7 +34,11 @@ export async function recognize(image: string, progress: (value: string) => void
     // inset. Upscaling helps small type; contrast filtering can erase foil text.
     const footer = await worker.recognize(crop(0, .60, 1, .40), {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
-    const text = `${reliableText(whole.data)}\n${reliableText(footer.data)}`;
+    // Read the title separately: small names can be lost among artwork and
+    // attack text, especially after the photo picker resizes a picture.
+    const title = await worker.recognize(crop(0, 0, 1, .4), {}, { blocks: true });
+    if (task !== generation) throw new Error('Scan cancelled.');
+    const text = `${reliableText(title.data)}\n${reliableText(whole.data)}\n${reliableText(footer.data)}`;
     if (whole.data.confidence >= 45 || /\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(text)) return { text, approximate: false };
     progress('Trying a clearer reading of reflective text…');
     // Red-channel binarization removes some gold/foil texture. Keep this as an
@@ -50,22 +54,28 @@ export async function recognize(image: string, progress: (value: string) => void
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
     const fallback = await worker.recognize(canvas.toDataURL('image/png'));
     if (task !== generation) throw new Error('Scan cancelled.');
-    return { text: fallback.data.text, approximate: true };
+    // Preserve high-confidence title evidence even if the page as a whole
+    // scored poorly. Keep noisy body text out of the exact fallback matches.
+    return { text: `${reliableText(title.data)}\n${reliableText(whole.data, source.height * .4)}`, fallbackText: fallback.data.text, approximate: false };
   }
   finally { if (active === worker) active = undefined; await worker.terminate(); }
 }
 export async function imageFromFile(file: File): Promise<string> {
   if (file.size > 25 * 1024 * 1024) throw new Error('Choose an image smaller than 25 MB.');
   if (!file.type.startsWith('image/')) throw new Error('Choose a photo of your card.');
-  const url = URL.createObjectURL(file);
   try {
+    const url = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string); reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
     const image = await loadImage(url);
     const scale = Math.min(1, 1800 / Math.max(image.width, image.height));
     const canvas = document.createElement('canvas'); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
     canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', .92);
   } catch { throw new Error('This image could not be opened. Try a JPG, PNG, or a new camera capture.'); }
-  finally { URL.revokeObjectURL(url); }
+
 }
 export function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = url; });
@@ -74,5 +84,5 @@ export async function rotateImage(url: string) {
   const image = await loadImage(url); const canvas = document.createElement('canvas');
   canvas.width = image.height; canvas.height = image.width;
   const ctx = canvas.getContext('2d')!; ctx.translate(canvas.width, 0); ctx.rotate(Math.PI / 2); ctx.drawImage(image, 0, 0);
-  return canvas.toDataURL('image/jpeg', .94);
+  return canvas.toDataURL('image/png');
 }

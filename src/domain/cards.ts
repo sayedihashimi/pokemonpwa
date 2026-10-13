@@ -111,3 +111,9 @@ export function matchText(catalog: CardBrief[], text: string, approximate = fals
   // supply a number when OCR cannot read it; truncation here loses valid cards.
   return approximate && matches.length ? matches.filter(card => normalize(card.name).length === normalize(matches[0].name).length) : matches;
 }
+
+export function matchRead(catalog: CardBrief[], reading: { text: string; approximate: boolean; fallbackText?: string }) {
+  const exact = matchText(catalog, reading.text, reading.approximate);
+  if (exact.length || !reading.fallbackText) return { matches: exact, text: reading.text, approximate: reading.approximate };
+  return { matches: matchText(catalog, reading.fallbackText, true), text: reading.fallbackText, approximate: true };
+}

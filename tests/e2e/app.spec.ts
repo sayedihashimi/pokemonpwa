@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import sharp from 'sharp';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +54,7 @@ test('photo upload runs local OCR and finds the exact numbered card', async ({ p
   expect(uploadedRequests).toEqual([]);
 });
 
-test('Kyogre photo with background and sleeve matches Celebrations 003/025', async ({ page }) => {
+test('Kyogre photo with background and sleeve matches Celebrations 003/025', async ({ page, browserName }) => {
   test.setTimeout(90000);
   const kyogre = { id: 'cel25-3', name: 'Kyogre', localId: '3' };
   const alternatives = [kyogre, { id: 'ex9-6', name: 'Kyogre', localId: '6' },
@@ -64,9 +65,17 @@ test('Kyogre photo with background and sleeve matches Celebrations 003/025', asy
     ...kyogre, set: { id: 'cel25', name: 'Celebrations', cardCount: { official: 25 } }, variants: { holo: true },
   } }));
   await page.goto('./');
-  await page.getByLabel('Upload card photo').setInputFiles(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url)));
+  await page.getByLabel('Upload card photo').setInputFiles(({ name: 'kyogre-3.jpg', mimeType: 'image/jpeg', buffer: readFileSync(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url))) }));
   await page.getByRole('button', { name: 'Identify card' }).click();
   await expect(page.locator('.match').first()).toContainText('Kyogre', { timeout: 60000 });
+  // WebKit can read the name without resolving the small collector number.
+  // Verify the explicit unverified-number flow, never an unrelated suggestion.
+  if (browserName === 'webkit' && await page.locator('.match').count() > 1) {
+    await expect(page.locator('.match')).toHaveCount(2);
+    await expect(page.locator('.match').filter({ hasText: 'Kyogre' })).toHaveCount(2);
+    await expect(page.locator('.notice')).toContainText('couldn’t read the card number');
+    await page.getByLabel('Card number (before /)').fill('003');
+  }
   await expect(page.locator('.match')).toHaveCount(1);
   await page.locator('.match').first().click();
   await expect(page.getByRole('heading', { name: 'Kyogre', exact: true })).toBeVisible();
@@ -83,7 +92,7 @@ test('reflective Mega Charizard suggests its family, never Hala or an exact prin
   await page.route('https://api.tcgdex.net/v2/en/cards', route => route.fulfill({ json: [...choices,
     ...Array.from({ length: 100 }, (_, i) => ({ id: `test-${i}`, name: `Other ${i}`, localId: `${i}` }))] }));
   await page.goto('./');
-  await page.getByLabel('Upload card photo').setInputFiles(fileURLToPath(new URL('../../assets/mega-charizard-x-ex-94.jpg', import.meta.url)));
+  await page.getByLabel('Upload card photo').setInputFiles(({ name: 'mega-charizard-x-ex-94.jpg', mimeType: 'image/jpeg', buffer: readFileSync(fileURLToPath(new URL('../../assets/mega-charizard-x-ex-94.jpg', import.meta.url))) }));
   await page.getByRole('button', { name: 'Identify card' }).click();
   await expect(page.locator('.notice')).toContainText('Possible name matches only', { timeout: 60000 });
   await expect(page.locator('.match')).toHaveCount(2);
@@ -103,7 +112,7 @@ test('Gengar photo keeps later printings and supports number refinement and stam
     pricing: { tcgplayer: { unit: 'USD', holofoil: { marketPrice: 3.97, productId: 241716 } } },
   } }));
   await page.goto('./');
-  await page.getByLabel('Upload card photo').setInputFiles(fileURLToPath(new URL('../../assets/gengar-57.jpg', import.meta.url)));
+  await page.getByLabel('Upload card photo').setInputFiles(({ name: 'gengar-57.jpg', mimeType: 'image/jpeg', buffer: readFileSync(fileURLToPath(new URL('../../assets/gengar-57.jpg', import.meta.url))) }));
   await page.getByRole('button', { name: 'Identify card' }).click();
   await expect(page.locator('.notice')).toContainText('couldn’t read the card number', { timeout: 60000 });
   await expect(page.locator('.matches-heading')).toContainText('12 of 25 results');
@@ -141,7 +150,7 @@ for (const device of ['iPhone', 'iPad desktop mode']) {
     // Cancelling system capture must leave the scan controls usable.
     await page.getByLabel('Take card photo').dispatchEvent('cancel');
     await expect(page.getByRole('button', { name: 'Take photo', exact: true })).toBeEnabled();
-    await picker.setFiles(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url)));
+    await picker.setFiles(({ name: 'kyogre-3.jpg', mimeType: 'image/jpeg', buffer: readFileSync(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url))) }));
     await expect(page.getByRole('button', { name: 'Identify card' })).toBeVisible();
     await expect(page.locator('.photo-preview')).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
