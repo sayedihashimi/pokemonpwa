@@ -4,6 +4,31 @@ export function reliableText(page: Pick<Page, 'blocks'>, maxY = Infinity): strin
   return (page.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines.filter(line => line.bbox.y1 <= maxY && !/evolves?\s+from/i.test(line.text)).map(line =>
     line.words.map(word => word.confidence >= 60 ? word.text : '\n').join(' ')))).join('\n');
 }
+// Sparse OCR sometimes puts adjacent pieces of one title into separate blocks,
+// even in reverse reading order. Rejoin only confident, closely spaced words
+// that occupy the same visual row; never concatenate arbitrary OCR lines.
+export function titleFragments(page: Pick<Page, 'blocks'>, maxY: number): string {
+  const words = (page.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines
+    .filter(line => !/evolves?\s+from/i.test(line.text))
+    .flatMap(line => line.words)))
+    .filter(word => word.confidence >= 60 && /^[a-z]{2,}$/i.test(word.text) && word.bbox.y1 <= maxY)
+    .sort((a, b) => a.bbox.x0 - b.bbox.x0);
+  const phrases: string[] = [];
+  for (const first of words) {
+    const parts = [first.text]; let previous = first;
+    for (const next of words) {
+      const a = previous.bbox, b = next.bbox;
+      const height = Math.min(a.y1 - a.y0, b.y1 - b.y0);
+      const overlap = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+      const gap = b.x0 - a.x1;
+      if (height <= 0 || b.x0 <= a.x0 || overlap < height * .65 || gap < -height * .1 || gap > height * .6) continue;
+      parts.push(next.text); previous = next;
+      phrases.push(parts.join(' '));
+      if (parts.length === 6) break;
+    }
+  }
+  return [...new Set(phrases)].join('\n');
+}
 let active: Worker | undefined;
 let generation = 0;
 export async function cancelRecognition() { generation++; const worker = active; active = undefined; await worker?.terminate(); }
@@ -38,7 +63,8 @@ export async function recognize(image: string, progress: (value: string) => void
     // attack text, especially after the photo picker resizes a picture.
     const title = await worker.recognize(crop(0, 0, 1, .4), {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
-    const text = `${reliableText(title.data)}\n${reliableText(whole.data)}\n${reliableText(footer.data)}`;
+    const titleText = `${reliableText(title.data)}\n${titleFragments(title.data, source.height * .4 * 3)}\n${titleFragments(whole.data, source.height * .4)}`;
+    const text = `${titleText}\n${reliableText(whole.data)}\n${reliableText(footer.data)}`;
     if (whole.data.confidence >= 45 || /\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(text)) return { text, approximate: false };
     progress('Trying a clearer reading of reflective text…');
     // Red-channel binarization removes some gold/foil texture. Keep this as an
@@ -56,7 +82,7 @@ export async function recognize(image: string, progress: (value: string) => void
     if (task !== generation) throw new Error('Scan cancelled.');
     // Preserve high-confidence title evidence even if the page as a whole
     // scored poorly. Keep noisy body text out of the exact fallback matches.
-    return { text: `${reliableText(title.data)}\n${reliableText(whole.data, source.height * .4)}`, fallbackText: fallback.data.text, approximate: false };
+    return { text: `${titleText}\n${reliableText(whole.data, source.height * .4)}`, fallbackText: fallback.data.text, approximate: false };
   }
   finally { if (active === worker) active = undefined; await worker.terminate(); }
 }
