@@ -92,6 +92,37 @@ test('reflective Mega Charizard suggests its family, never Hala or an exact prin
   await expect(page.locator('.raw-price')).toHaveCount(0);
 });
 
+test('Gengar photo keeps later printings and supports number refinement and stamped cards', async ({ page }) => {
+  test.setTimeout(90000);
+  const gengar = { id: 'swsh6-57', name: 'Gengar', localId: '57' };
+  const choices = [...Array.from({ length: 24 }, (_, i) => ({ id: `older-${i}`, name: 'Gengar', localId: `${i + 1}` })), gengar];
+  await page.route('https://api.tcgdex.net/v2/en/cards', route => route.fulfill({ json: [...choices,
+    ...Array.from({ length: 100 }, (_, i) => ({ id: `test-${i}`, name: `Other ${i}`, localId: `${i}` }))] }));
+  await page.route('https://api.tcgdex.net/v2/en/cards/swsh6-57', route => route.fulfill({ json: {
+    ...gengar, set: { id: 'swsh6', name: 'Chilling Reign', cardCount: { official: 198 } }, variants: { holo: true },
+    pricing: { tcgplayer: { unit: 'USD', holofoil: { marketPrice: 3.97, productId: 241716 } } },
+  } }));
+  await page.goto('./');
+  await page.getByLabel('Upload card photo').setInputFiles(fileURLToPath(new URL('../../assets/gengar-57.jpg', import.meta.url)));
+  await page.getByRole('button', { name: 'Identify card' }).click();
+  await expect(page.locator('.notice')).toContainText('couldn’t read the card number', { timeout: 60000 });
+  await expect(page.locator('.matches-heading')).toContainText('12 of 25 results');
+  await page.getByRole('button', { name: 'Show more matches' }).click();
+  await page.getByRole('button', { name: 'Show more matches' }).click();
+  await expect(page.getByRole('button', { name: /Gengar.*57.*SWSH6/ })).toBeVisible();
+  await page.getByLabel('Card number (before /)').fill('057');
+  await expect(page.locator('.match')).toHaveCount(1);
+  await page.locator('.match').click();
+  await expect(page.locator('.number-tag')).toHaveText('#57 / 198');
+  await page.getByLabel('Confirm your printing').selectOption('holofoil');
+  await expect(page.locator('.raw-price')).toContainText('$3.97');
+  await page.getByLabel('Confirm your printing').selectOption('stamped');
+  await expect(page.locator('.raw-price')).toContainText('Stamped reprint price unavailable');
+  await expect(page.locator('.raw-price')).not.toContainText('$3.97');
+  await expect(page.getByRole('link', { name: 'Inspect on TCGplayer' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'View sold listings' })).toHaveCount(0);
+});
+
 for (const device of ['iPhone', 'iPad desktop mode']) {
   test(`${device} uses system photo capture without requesting a video stream`, async ({ page }) => {
     await page.addInitScript(device => {

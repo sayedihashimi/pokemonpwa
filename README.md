@@ -26,6 +26,7 @@ For a local subpath check in PowerShell, set `$env:VITE_BASE_PATH = '/pokemonpwa
 - A network connection is required for uncached details and fresh prices. The PWA shell can reopen offline, but offline scanning is not guaranteed before OCR assets are downloaded.
 - Camera permission, focus, and installation still require physical iPhone verification. Mobile Chromium emulation is not an iPhone Safari test.
 - Reflective cards can produce only name-level suggestions. The Mega Charizard fixture now suggests the correct named family instead of Hala, but cannot reliably read its obscured number. The app explicitly asks for artwork/set/number confirmation rather than assigning an exact printing automatically.
+- Name-only scans preserve every candidate with paginated results. Enter the collector number (before the slash) to narrow matches when OCR cannot read it; the Gengar 057/198 fixture covers this flow. For pumpkin or other promotional stamps, choose **Stamped / special reprint**: the current feed does not verify that reprint's value, so the app withholds the original printing's price and links.
 
 The [initial MVP plan](docs/MVP-PLAN.md) defines scanning, card details, market pricing, and automatic GitHub Pages deployment on pushes to the `deploy` branch.
 

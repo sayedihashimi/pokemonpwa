@@ -4,6 +4,7 @@
 - `app-result-incorrect.png`: user-provided screenshot showing the original erroneous Seer suggestion. Approved by the user for committing to this repository.
 - `mega-charizard-x-ex-94.jpg`: user-provided reflective gold Mega Charizard X ex photo; the catalog printing is Phantasmal Flames 130/094. The sleeve/foil obscures the collector number, so the regression requires name-only candidates including 130, not automatic exact identification.
 - `mega-charizard-x-ex-94-error-scan.png`: reported erroneous Hala suggestions for that photo.
+- `gengar-57.jpg`: user-provided Gengar 057/198 photo with a pumpkin stamp. OCR reads Gengar but not the number reliably. The regression verifies that the original Chilling Reign catalog entry remains accessible beyond the first page, entering 057 narrows the candidates, and choosing the stamped-reprint option withholds the original printing's price and marketplace links.
 
 The browser regression uploads the original JPEG, runs the real local OCR worker, and checks that the sole candidate is Kyogre `cel25-3`, then confirms Celebrations and 3/25 in the details. Its provider fixtures include a different Kyogre printing, Seer, and another Pokémon numbered 3. These source fixtures are not copied into the deployed app.
 

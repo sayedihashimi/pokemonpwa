@@ -7,6 +7,7 @@ export interface Card extends CardBrief {
 }
 export interface Quote { cents: number | null; productId?: number; updated?: string; reason?: string }
 export const variantLabels: Record<string, string> = {
+  stamped: 'Stamped / special reprint',
   normal: 'Normal', holofoil: 'Holofoil', 'reverse-holofoil': 'Reverse holo',
   '1st-edition-holofoil': '1st edition · Holofoil', '1st-edition-normal': '1st edition · Normal',
 };
@@ -41,6 +42,7 @@ export function variantsFor(card: Card): string[] {
 }
 export function quoteFor(card: Card, variant: string, edition: string): Quote {
   if (!variant) return { cents: null, reason: 'Confirm the printing to see its price.' };
+  if (variant === 'stamped') return { cents: null, reason: 'This feed does not verify the stamped reprint. The original card’s price does not apply.' };
   if (card.variants?.firstEdition && edition !== 'unlimited') return { cents: null, reason: 'This feed does not verify a separate first-edition price. Check the exact edition on the marketplace.' };
   const prices = card.pricing?.tcgplayer;
   const entry = prices?.[variant];
@@ -105,5 +107,7 @@ export function matchText(catalog: CardBrief[], text: string, approximate = fals
   const matches = catalog.filter(card => normalize(card.name).length >= 3 && matchesName(card.name)
     && (!numbers.length || numbers.includes(normalizeNumber(card.localId))))
     .sort((a, b) => normalize(b.name).length - normalize(a.name).length || a.id.localeCompare(b.id));
-  return (approximate && matches.length ? matches.filter(card => normalize(card.name).length === normalize(matches[0].name).length) : matches).slice(0, 12);
+  // Keep every plausible printing. The UI paginates and lets the collector
+  // supply a number when OCR cannot read it; truncation here loses valid cards.
+  return approximate && matches.length ? matches.filter(card => normalize(card.name).length === normalize(matches[0].name).length) : matches;
 }
