@@ -1,5 +1,14 @@
 # Goozemon Initial MVP Plan
 
+## Implemented follow-up: guided captures (0.2.0)
+
+The scan session now supports one card across up to four original-resolution photos. A full-card reference can be supplemented by name, collector-number/set, stamp, or another full-card photo. Capture remains the iOS system interface; guidance and adjustable overlays appear after capture. Users can replace/rotate photos, remove supplemental photos, and clear the session. Native-resolution crops are passed to OCR without downsampling; a separate reduced context image is disposable. Large regions that exceed the crop processing budget request a smaller region instead of silently reducing it.
+
+Name and number evidence are combined conservatively. Conflicting names/numbers block candidates until the user corrects the session; no price survives an edit to photos or reading regions. Stamps require visual confirmation, and confirmed stamped copies cannot receive original-printing prices. The highlights report recognition state across the session, not calibrated sharpness. Card-boundary detection, automatic glare/blur assessment, stamp classification, and live camera overlays remain future work. Physical iPhone capture and performance verification remains necessary.
+
+Validation includes the existing Kyogre, Mega Charizard, and Gengar photo fixtures, original-byte retention, and a Gengar-plus-number close-up flow in Chromium and mobile WebKit, including cancelled capture, conflicting cards, crop edits, removal, and pricing safeguards.
+
+
 Goozemon will be a free, installable Pokemon card scanner that identifies a card, lets the collector confirm its printing, and displays its details and an attributed market price. Personal data and photos remain on the device. The MVP will be a static PWA hosted on GitHub Pages, deployed automatically when the user pushes to the `deploy` branch.
 
 This plan is dated October 12, 2026. It covers implementation and release validation; it does not deploy an application by itself.

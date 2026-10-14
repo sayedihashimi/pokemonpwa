@@ -105,7 +105,7 @@ test('reflective Mega Charizard suggests its family, never Hala or an exact prin
 test('Gengar photo keeps later printings and supports number refinement and stamped cards', async ({ page }) => {
   test.setTimeout(90000);
   const gengar = { id: 'swsh6-57', name: 'Gengar', localId: '57' };
-  const choices = [...Array.from({ length: 24 }, (_, i) => ({ id: `older-${i}`, name: 'Gengar', localId: `${i + 1}` })), gengar];
+  const choices = [...Array.from({ length: 24 }, (_, i) => ({ id: `older-${i}`, name: 'Gengar', localId: `${i + 1}` })), gengar, { id: 'base1-29', name: 'Haunter', localId: '29' }];
   await page.route('https://api.tcgdex.net/v2/en/cards', route => route.fulfill({ json: [...choices,
     ...Array.from({ length: 100 }, (_, i) => ({ id: `test-${i}`, name: `Other ${i}`, localId: `${i}` }))] }));
   await page.route('https://api.tcgdex.net/v2/en/cards/swsh6-57', route => route.fulfill({ json: {
@@ -157,3 +157,50 @@ for (const device of ['iPhone', 'iPad desktop mode']) {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 }
+
+test('guided photos combine a Gengar name with a close-up, preserve cancelled captures, and reject conflicts', async ({ page }) => {
+  test.setTimeout(120000);
+  const gengar = { id: 'swsh6-57', name: 'Gengar', localId: '57' };
+  await page.route('https://api.tcgdex.net/v2/en/cards', route => route.fulfill({ json: [gengar, { id: 'other-94', name: 'Gengar', localId: '94' }, { id: 'cel25-3', name: 'Kyogre', localId: '3' }, ...Array.from({length:100}, (_,i)=>({id:`filler-${i}`,name:`Other ${i}`,localId:`${i}`}))] }));
+  await page.route('https://api.tcgdex.net/v2/en/cards/swsh6-57', route => route.fulfill({ json: { ...gengar, set: { id: 'swsh6', name: 'Chilling Reign', cardCount: { official: 198 } }, variants: { holo: true }, pricing: { tcgplayer: { unit: 'USD', holofoil: { marketPrice: 3.97, productId: 241716 } } } } }));
+  const photo = (text: string) => sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="650" height="180"><rect width="650" height="180" fill="white"/><text x="50" y="100" font-family="Arial" font-size="50" font-weight="bold">${text}</text></svg>`)).png().toBuffer();
+  await page.goto('./');
+  await page.getByLabel('Upload card photo').setInputFiles({ name: 'gengar.jpg', mimeType: 'image/jpeg', buffer: readFileSync(fileURLToPath(new URL('../../assets/gengar-57.jpg', import.meta.url))) });
+  await expect(page.getByLabel('Photos of this card')).toBeVisible();
+  await expect(page.locator('.area-overlay rect')).toHaveCount(3);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Identify card' }).click();
+  await expect(page.locator('.match')).toHaveCount(2, {timeout:60000});
+  await expect(page.getByLabel('Reading status').getByText('Number: add a close-up')).toBeVisible();
+  const chooserEvent = page.waitForEvent('filechooser'); await page.getByRole('button', {name:'Take close-up',exact:true}).click(); const chooser=await chooserEvent;
+  expect(await chooser.element().getAttribute('capture')).toBe('environment');
+  await page.getByLabel('Take supplemental card photo').dispatchEvent('cancel');
+  await expect(page.locator('.capture-strip button')).toHaveCount(1);
+  await expect(page.locator('.match')).toHaveCount(2);
+  await chooser.setFiles({name:'number.png',mimeType:'image/png',buffer:await photo('057/198')});
+  await expect(page.locator('.capture-strip button')).toHaveCount(2);
+  await expect(page.locator('.match')).toHaveCount(0);
+  await page.getByRole('button', { name:'Identify card' }).click();
+  await expect(page.locator('.match')).toHaveCount(1, {timeout:60000});
+  await expect(page.getByLabel('Reading status').getByText('Number read: 57')).toBeVisible();
+  await page.getByLabel('Does this card have a stamp?').selectOption('present');
+  await page.locator('.match').click();
+  await expect(page.locator('.raw-price')).toContainText('Stamped reprint price unavailable');
+  await expect(page.getByLabel('Confirm your printing').locator('option[value=holofoil]')).toBeDisabled();
+  await page.getByText('Adjust reading areas', {exact:true}).click();
+  await page.getByLabel('number area x').fill('1');
+  await expect(page.locator('.result')).toHaveCount(0);
+  await expect(page.getByLabel('Reading status').getByText('number: not checked')).toBeVisible();
+  await page.getByRole('button', {name:'Remove photo',exact:true}).click();
+  await expect(page.locator('.capture-strip button')).toHaveCount(1);
+  await page.getByLabel('Next photo').selectOption('name');
+  const uploadEvent=page.waitForEvent('filechooser'); await page.getByRole('button',{name:'Upload another photo',exact:true}).click();
+  await (await uploadEvent).setFiles({name:'wrong-card.png',mimeType:'image/png',buffer:await photo('Kyogre')});
+  await expect(page.locator('.capture-strip button')).toHaveCount(2);
+  await page.getByRole('button',{name:'Identify card'}).click();
+  await expect(page.getByRole('alert')).toContainText('names in these photos disagree', {timeout:60000});
+  await expect(page.locator('.match')).toHaveCount(0);
+  await page.getByRole('button',{name:'Clear photos',exact:true}).click();
+  await expect(page.getByLabel('Photos of this card')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/^(Start camera|Take photo)$/})).toBeVisible();
+});

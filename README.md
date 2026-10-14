@@ -2,9 +2,17 @@
 
 A free Pokemon card scanner planned as a local-first progressive web app. No sign-in. Collection cataloging is deferred until identification and pricing are reliable.
 
-Status: first working app implemented. Camera capture, photo upload, local OCR, manual catalog search, printing confirmation, and live raw market references are available. PSA 9/10 panels currently link to eBay sold searches; automatic PSA prices need a verified provider and credentials. Research checked October 12, 2026.
+Status: version 0.2.0 adds guided multi-photo scanning. Original-resolution uploads, adjustable reading areas, supplemental close-ups, local OCR, manual catalog search, printing confirmation, and live raw market references are available. PSA 9/10 panels currently link to eBay sold searches; automatic PSA prices need a verified provider and credentials. Research checked October 12, 2026.
 
 On iPhone and iPad, **Take photo** requests the system rear-camera photo interface. **Upload photo** stays separate, and **Use live camera instead** retains the video-preview option. Desktop browsers retain **Start camera**. This uses the standard [HTML capture attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture); actual system camera behavior still needs physical iOS verification.
+
+## Guided scans
+
+Take one full-card reference photo, then choose **Identify card**. The app highlights suggested name, number/set, and stamp areas. Use **Adjust reading areas** to move or resize them when the card is inset, rotated, or uses a different layout. The boxes are suggestions, not automatic card-boundary detection.
+
+Add up to three more photos of the same card with **Take close-up** or **Upload another photo**. Choose Name, Number, Stamp, or Full card before adding a photo. Close-ups start with the whole photo selected, and can be cropped further. Photos stay in memory at original resolution (25 MB per file, approximately 60 MB combined); nothing is uploaded or saved as a collection. Clear photos or switch lookup modes to discard the session.
+
+Green indicates a catalog-compatible reading, amber requests more information, red indicates conflicting readings, and gray means unchecked. These are recognition indicators, not calibrated blur/glare measurements. Blue stamp indicators reflect the user's visual confirmation. The app combines compatible name/number readings across photos, rejects conflicting names or collector numbers, and invalidates results whenever photos or crop areas change. Stamp close-ups support visual inspection; there is no automatic stamp classifier. Confirming a stamp withholds unverified original-printing prices.
 
 ## Run locally
 
@@ -20,7 +28,7 @@ For a local subpath check in PowerShell, set `$env:VITE_BASE_PATH = '/pokemonpwa
 
 ## Current limits
 
-- OCR reads the whole photo plus an enlarged lower region to accommodate background and sleeves. The user-provided Kyogre 003/025 photo is covered by a browser regression. Broader real iPhone photo benchmarking is still needed; closer, clear photos work best. Confirm every match and printing. Camera capture crops to the visible guide.
+- OCR retains original upload bytes and reads native-resolution name/number crops. A separate smaller image supplies broad context and the foil fallback. The user-provided Kyogre 003/025 photo is covered by a browser regression. Broader real iPhone photo benchmarking is still needed; closer, clear photos work best. Confirm every match and printing. Camera capture crops to the visible guide.
 - First-edition prices are withheld when the feed cannot prove the edition. Missing or unknown prices are never substituted with another printing.
 - PSA numeric prices and the planned serverless proxy are not connected yet. eBay links are inspection searches, not computed valuations.
 - A network connection is required for uncached details and fresh prices. The PWA shell can reopen offline, but offline scanning is not guaranteed before OCR assets are downloaded.

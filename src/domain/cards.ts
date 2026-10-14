@@ -73,7 +73,7 @@ export function matchText(catalog: CardBrief[], text: string, approximate = fals
   // Allow split words on a single line, e.g. Tesseract's "Kyo gre".
   const phrases = new Set<string>();
   for (const line of text.split(/\r?\n/)) {
-    if (/evolves?\s+from/i.test(line)) continue;
+    if (/(?:evolves?\s+from|^\s*from\b)/i.test(line)) continue;
     const words = line.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9]+/g) || [];
     // Long attack/flavor descriptions are not card-title evidence.
     if (words.length > 12) continue;
