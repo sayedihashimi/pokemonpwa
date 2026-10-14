@@ -66,6 +66,7 @@ test('Kyogre photo with background and sleeve matches Celebrations 003/025', asy
   } }));
   await page.goto('./');
   await page.getByLabel('Upload card photo').setInputFiles(({ name: 'kyogre-3.jpg', mimeType: 'image/jpeg', buffer: readFileSync(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url))) }));
+  await expect(page.locator('.photo-preview')).toHaveAttribute('src', `data:image/jpeg;base64,${readFileSync(fileURLToPath(new URL('../../assets/kyogre-3.jpg', import.meta.url))).toString('base64')}`);
   await page.getByRole('button', { name: 'Identify card' }).click();
   await expect(page.locator('.match').first()).toContainText('Kyogre', { timeout: 60000 });
   // WebKit can read the name without resolving the small collector number.

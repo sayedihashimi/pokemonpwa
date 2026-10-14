@@ -45,32 +45,40 @@ export async function recognize(image: string, progress: (value: string) => void
   try {
     const source = await loadImage(image);
     const crop = (x: number, y: number, width: number, height: number) => {
-      const canvas = document.createElement('canvas'); canvas.width = Math.round(source.width * width * 3); canvas.height = Math.round(source.height * height * 3);
+      const canvas = document.createElement('canvas'); canvas.width = Math.round(source.width * width); canvas.height = Math.round(source.height * height);
       const ctx = canvas.getContext('2d')!;
       ctx.drawImage(source, source.width * x, source.height * y, source.width * width, source.height * height, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/png');
+      const data = canvas.toDataURL('image/png'); canvas.width = canvas.height = 0; return data;
     };
+    // The original is retained. Only the broad context pass uses a smaller copy;
+    // title and collector-number crops below read the original pixels at 1:1.
+    const overviewCanvas = document.createElement('canvas');
+    const overviewScale = Math.min(1, 1800 / Math.max(source.width, source.height));
+    overviewCanvas.width = Math.round(source.width * overviewScale); overviewCanvas.height = Math.round(source.height * overviewScale);
+    overviewCanvas.getContext('2d')!.drawImage(source, 0, 0, overviewCanvas.width, overviewCanvas.height);
+    const overview = overviewCanvas.toDataURL('image/jpeg', .92);
+    const overviewImage = await loadImage(overview);
+    overviewCanvas.width = overviewCanvas.height = 0;
     // Uploaded photos can include a sleeve and background. Locate text across the
     // photo instead of assuming its top edge is the card's title strip.
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    const whole = await worker.recognize(image, {}, { blocks: true });
+    const whole = await worker.recognize(overview, {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
-    // A larger lower region includes the collector number even when the card is
-    // inset. Upscaling helps small type; contrast filtering can erase foil text.
+    // The lower region includes the collector number even when the card is
+    // inset. Native pixels preserve small type; filtering can erase foil text.
     const footer = await worker.recognize(crop(0, .60, 1, .40), {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
-    // Read the title separately: small names can be lost among artwork and
-    // attack text, especially after the photo picker resizes a picture.
+    // Read the title directly from the original, separately from artwork and body text.
     const title = await worker.recognize(crop(0, 0, 1, .4), {}, { blocks: true });
     if (task !== generation) throw new Error('Scan cancelled.');
-    const titleText = `${reliableText(title.data)}\n${titleFragments(title.data, source.height * .4 * 3)}\n${titleFragments(whole.data, source.height * .4)}`;
+    const titleText = `${reliableText(title.data)}\n${titleFragments(title.data, source.height * .4)}\n${titleFragments(whole.data, overviewImage.height * .4)}`;
     const text = `${titleText}\n${reliableText(whole.data)}\n${reliableText(footer.data)}`;
     if (whole.data.confidence >= 45 || /\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(text)) return { text, approximate: false };
     progress('Trying a clearer reading of reflective text…');
     // Red-channel binarization removes some gold/foil texture. Keep this as an
     // explicitly approximate fallback; never blend its noise into exact OCR.
-    const canvas = document.createElement('canvas'); canvas.width = source.width; canvas.height = source.height;
-    const ctx = canvas.getContext('2d')!; ctx.drawImage(source, 0, 0);
+    const canvas = document.createElement('canvas'); canvas.width = overviewImage.width; canvas.height = overviewImage.height;
+    const ctx = canvas.getContext('2d')!; ctx.drawImage(overviewImage, 0, 0);
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
     for (let i = 0; i < pixels.data.length; i += 4) {
       const value = pixels.data[i] > 140 ? 255 : 0;
@@ -82,7 +90,7 @@ export async function recognize(image: string, progress: (value: string) => void
     if (task !== generation) throw new Error('Scan cancelled.');
     // Preserve high-confidence title evidence even if the page as a whole
     // scored poorly. Keep noisy body text out of the exact fallback matches.
-    return { text: `${titleText}\n${reliableText(whole.data, source.height * .4)}`, fallbackText: fallback.data.text, approximate: false };
+    return { text: `${titleText}\n${reliableText(whole.data, overviewImage.height * .4)}`, fallbackText: fallback.data.text, approximate: false };
   }
   finally { if (active === worker) active = undefined; await worker.terminate(); }
 }
@@ -95,11 +103,8 @@ export async function imageFromFile(file: File): Promise<string> {
       reader.onload = () => resolve(reader.result as string); reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
-    const image = await loadImage(url);
-    const scale = Math.min(1, 1800 / Math.max(image.width, image.height));
-    const canvas = document.createElement('canvas'); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
-    canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', .92);
+    await loadImage(url); // Verify decoding without resizing or recompressing the upload.
+    return url;
   } catch { throw new Error('This image could not be opened. Try a JPG, PNG, or a new camera capture.'); }
 
 }
